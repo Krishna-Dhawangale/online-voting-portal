@@ -1,0 +1,6 @@
+Flask>=3.0,<4
+Werkzeug>=3.0,<4
+python-dotenv>=1.0.0
+SQLAlchemy>=2.0,<3
+psycopg[binary]>=3.1,<4
+aws-wsgi>=0.2.7
