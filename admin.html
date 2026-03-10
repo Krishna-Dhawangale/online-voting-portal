@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Manage Candidates{% endblock %}
+
+{% block content %}
+<div class="content-card mx-auto">
+  <div class="card-surface p-4 p-lg-5 bg-white">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <h1 class="h4 fw-semibold mb-1">Candidate management</h1>
+        <p class="text-muted small mb-0">
+          Add candidates and their parties to make them available on the voting screen.
+        </p>
+      </div>
+      <div>
+        <span class="badge bg-dark text-light results-badge px-3 py-2 small">
+          Admin console
+        </span>
+      </div>
+    </div>
+
+    <form method="post" class="mb-3" novalidate>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="field-label mb-1">Candidate name</label>
+          <input
+            type="text"
+            name="name"
+            class="form-control form-control-lg"
+            placeholder="Full candidate name"
+            required
+          >
+        </div>
+        <div class="col-md-6">
+          <label class="field-label mb-1">Political party</label>
+          <input
+            type="text"
+            name="party"
+            class="form-control form-control-lg"
+            placeholder="Party name"
+            required
+          >
+        </div>
+      </div>
+      <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-primary btn-lg px-4">
+          Add candidate
+        </button>
+      </div>
+    </form>
+
+    <p class="subtle-link mb-0">
+      Tip: refresh the voting page after adding candidates to see the latest list.
+    </p>
+  </div>
+</div>
+{% endblock %}

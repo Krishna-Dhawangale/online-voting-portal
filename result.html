@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Live Results · Online Voting{% endblock %}
+
+{% block content %}
+<div class="content-card mx-auto">
+  <div class="card-surface p-4 p-lg-5 bg-white">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <h1 class="h4 fw-semibold mb-1">Election results</h1>
+        <p class="text-muted small mb-0">
+          Live tally of votes per candidate. Refresh the page to see the latest counts.
+        </p>
+      </div>
+      <div class="text-end">
+        <span class="badge bg-primary bg-opacity-80 text-white results-badge px-3 py-2 small">
+          Read‑only view
+        </span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Candidate</th>
+            <th scope="col" class="text-end">Total votes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if data %}
+            {% for r in data %}
+            <tr>
+              <th scope="row">{{ loop.index }}</th>
+              <td>{{ r[0] }}</td>
+              <td class="text-end fw-semibold">{{ r[1] }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">
+                No votes have been recorded yet.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

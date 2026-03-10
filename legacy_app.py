@@ -4,7 +4,7 @@ import random
 
 from db import candidates, get_session, get_voter_by_credentials, init_db, voters, votes
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.', static_folder=None)
 app.secret_key = "secretkey"
 print("Flask app initialized.")
 
