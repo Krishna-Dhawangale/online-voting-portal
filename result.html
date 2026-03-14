@@ -7,45 +7,148 @@
   <div class="card-surface p-4 p-lg-5 bg-white">
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
       <div>
-        <h1 class="h4 fw-semibold mb-1">Election results</h1>
+        <h1 class="h4 fw-semibold mb-1">Election Results</h1>
         <p class="text-muted small mb-0">
-          Live tally of votes per candidate. Refresh the page to see the latest counts.
+          Live voting statistics by candidate and party. Refresh for latest updates.
         </p>
       </div>
       <div class="text-end">
-        <span class="badge bg-primary bg-opacity-80 text-white results-badge px-3 py-2 small">
-          Read‑only view
-        </span>
+        <div class="badge bg-primary bg-opacity-80 text-white results-badge px-3 py-2 small mb-2">
+          Total Votes: <strong>{{ total_votes }}</strong>
+        </div>
+        <div class="badge bg-success bg-opacity-75 text-white results-badge px-3 py-2 small">
+          Live Results
+        </div>
       </div>
     </div>
 
+    {% if data %}
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="border rounded-3 p-3 text-center">
+          <div class="text-muted small mb-1">Total Candidates</div>
+          <div class="h4 mb-0 text-primary">{{ data|length }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded-3 p-3 text-center">
+          <div class="text-muted small mb-1">Total Votes Cast</div>
+          <div class="h4 mb-0 text-success">{{ total_votes }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="border rounded-3 p-3 text-center">
+          <div class="text-muted small mb-1">Leading Candidate</div>
+          <div class="h6 mb-0 text-warning">
+            {% if data[0].vote_count > 0 %}
+              {{ data[0].name }}
+            {% else %}
+              No votes yet
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Results Table -->
     <div class="table-responsive">
       <table class="table align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th scope="col">#</th>
+            <th scope="col">Rank</th>
             <th scope="col">Candidate</th>
-            <th scope="col" class="text-end">Total votes</th>
+            <th scope="col">Party</th>
+            <th scope="col" class="text-center">Votes</th>
+            <th scope="col" class="text-center">Percentage</th>
+            <th scope="col">Visual</th>
           </tr>
         </thead>
         <tbody>
-          {% if data %}
-            {% for r in data %}
-            <tr>
-              <th scope="row">{{ loop.index }}</th>
-              <td>{{ r[0] }}</td>
-              <td class="text-end fw-semibold">{{ r[1] }}</td>
-            </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="3" class="text-center text-muted py-4">
-                No votes have been recorded yet.
-              </td>
-            </tr>
-          {% endif %}
+          {% for candidate in data %}
+          <tr class="{% if loop.first and candidate.vote_count > 0 %}table-warning{% endif %}">
+            <td>
+              {% if candidate.vote_count > 0 %}
+                <span class="badge bg-{{ 'warning' if loop.first else 'secondary' }} rounded-pill">
+                  {{ loop.index }}
+                </span>
+              {% else %}
+                <span class="text-muted">{{ loop.index }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="fw-semibold">{{ candidate.name }}</div>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark">{{ candidate.party }}</span>
+            </td>
+            <td class="text-center">
+              <strong class="{{ 'text-warning' if loop.first and candidate.vote_count > 0 else '' }}">
+                {{ candidate.vote_count }}
+              </strong>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-{{ 'success' if candidate.percentage > 50 else 'primary' if candidate.percentage > 25 else 'secondary' if candidate.percentage > 0 else 'light' }} rounded-pill">
+                {{ candidate.percentage }}%
+              </span>
+            </td>
+            <td>
+              <div class="progress" style="height: 20px;">
+                <div class="progress-bar bg-{{ 'warning' if loop.first and candidate.vote_count > 0 else 'primary' }}" 
+                     role="progressbar" 
+                     style="width: {{ candidate.percentage }}%"
+                     aria-valuenow="{{ candidate.percentage }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                  {% if candidate.percentage > 5 %}{{ candidate.percentage }}%{% endif %}
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <!-- Party-wise Summary -->
+    <div class="mt-4 pt-4 border-top">
+      <h5 class="h6 fw-semibold mb-3">Party-wise Vote Distribution</h5>
+      {% set party_votes = {} %}
+      {% for candidate in data %}
+        {% set _ = party_votes.update({candidate.party: party_votes.get(candidate.party, 0) + candidate.vote_count}) %}
+      {% endfor %}
+      
+      <div class="row g-2">
+        {% for party, votes in party_votes.items() %}
+        <div class="col-md-6 col-lg-4">
+          <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+            <span class="fw-medium">{{ party }}</span>
+            <div>
+              <span class="badge bg-primary">{{ votes }}</span>
+              <small class="text-muted ms-1">{{ "%.1f"|format((votes / total_votes * 100) if total_votes > 0 else 0) }}%</small>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-bar-chart text-muted" style="font-size: 3rem;"></i>
+      <h5 class="mt-3 text-muted">No votes recorded yet</h5>
+      <p class="text-muted">Voting hasn't started or no votes have been cast yet.</p>
+    </div>
+    {% endif %}
+
+    <div class="mt-4 pt-3 border-top">
+      <div class="d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+          <i class="bi bi-info-circle"></i> Results are updated in real-time. Last updated: Just now
+        </small>
+        <button onclick="location.reload()" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
     </div>
   </div>
 </div>

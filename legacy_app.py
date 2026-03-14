@@ -8,10 +8,31 @@ app = Flask(__name__, template_folder='.', static_folder=None)
 app.secret_key = "secretkey"
 print("Flask app initialized.")
 
+# Configure for Vercel deployment
+import os
+if os.environ.get('VERCEL'):
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 # Initialize database schema (works for Postgres or SQLite via DATABASE_URL)
 try:
     init_db()
     print("Database initialized successfully.")
+    
+    # Seed initial data if running on Vercel and no candidates exist
+    if os.environ.get('VERCEL'):
+        with get_session() as session_db:
+            existing_candidates = session_db.execute(candidates.select()).first()
+            if not existing_candidates:
+                print("Seeding initial candidates for Vercel deployment...")
+                session_db.execute(candidates.insert().values(name="Narendra Modi", party="BJP"))
+                session_db.execute(candidates.insert().values(name="Rahul Gandhi", party="Congress"))
+                session_db.execute(candidates.insert().values(name="Eknath Shinde", party="Shiv Sena"))
+                session_db.execute(candidates.insert().values(name="naren", party="Independent"))
+                session_db.commit()
+                print("Initial candidates seeded successfully.")
+                
 except Exception as e:
     print(f"Error initializing database: {e}")
 
@@ -58,7 +79,8 @@ def login():
                 )
                 session_db.commit()
                 session['aadhaar'] = aadhaar
-                return f"OTP (Simulation): <b>{otp}</b> <br><a href='/verify'>Verify OTP</a>"
+                session['otp'] = otp  # Store OTP for verification
+                return redirect('/verify')
             else:
                 return "Invalid Login"
     return render_template('login.html')
@@ -91,6 +113,9 @@ def verify():
 @app.route('/vote', methods=['GET', 'POST'])
 def vote():
     voter_id = session.get('voter_id')
+    
+    if not voter_id:
+        return redirect('/')
 
     with get_session() as session_db:
         voted_row = session_db.execute(
@@ -103,7 +128,7 @@ def vote():
             return "You have already voted!"
 
         candidates_list = list(
-            session_db.execute(candidates.select()).mappings().all()
+            session_db.execute(candidates.select()).all()
         )
 
         if request.method == 'POST':
@@ -117,7 +142,7 @@ def vote():
                 .values(has_voted=True)
             )
             session_db.commit()
-            return "Vote Submitted Successfully"
+            return render_template('vote_success.html')
 
     return render_template('vote.html', candidates=candidates_list)
 
@@ -136,7 +161,45 @@ def admin():
                 )
             )
             session_db.commit()
-    return render_template('admin.html')
+    
+    # Get detailed voting information for admin
+    with get_session() as session_db:
+        from sqlalchemy import func as sa_func
+        from sqlalchemy import select as sa_select
+        
+        # Get voters with their voting details
+        voters_query = (
+            sa_select(
+                voters.c.voter_id,
+                voters.c.name,
+                voters.c.aadhaar,
+                voters.c.has_voted,
+                candidates.c.name.label('candidate_name'),
+                candidates.c.party.label('candidate_party'),
+                votes.c.voted_at
+            )
+            .select_from(
+                voters.outerjoin(votes, voters.c.voter_id == votes.c.voter_id)
+                .outerjoin(candidates, votes.c.candidate_id == candidates.c.candidate_id)
+            )
+            .order_by(voters.c.voter_id)
+        )
+        voters_data = session_db.execute(voters_query).all()
+        
+        # Prepare voters list
+        voters_list = []
+        for row in voters_data:
+            voters_list.append({
+                'voter_id': row.voter_id,
+                'name': row.name,
+                'aadhaar': row.aadhaar,
+                'has_voted': row.has_voted,
+                'candidate_name': row.candidate_name,
+                'candidate_party': row.candidate_party,
+                'voted_at': row.voted_at
+            })
+    
+    return render_template('admin.html', voters=voters_list)
 
 
 # ---------------- RESULT ----------------
@@ -146,21 +209,41 @@ def result():
     from sqlalchemy import select as sa_select
 
     with get_session() as session_db:
+        # Get detailed results with candidate info and vote counts
         stmt = (
             sa_select(
+                candidates.c.candidate_id,
                 candidates.c.name,
-                sa_func.count(votes.c.vote_id),
+                candidates.c.party,
+                sa_func.count(votes.c.vote_id).label('vote_count'),
             )
             .select_from(
                 candidates.outerjoin(
                     votes, candidates.c.candidate_id == votes.c.candidate_id
                 )
             )
-            .group_by(candidates.c.candidate_id)
+            .group_by(candidates.c.candidate_id, candidates.c.name, candidates.c.party)
+            .order_by(sa_func.count(votes.c.vote_id).desc())
         )
         rows = session_db.execute(stmt).all()
-        data = [(row[0], row[1]) for row in rows]
-    return render_template('result.html', data=data)
+        
+        # Calculate total votes for percentage
+        total_votes = sum(row.vote_count or 0 for row in rows)
+        
+        # Prepare data with percentages
+        data = []
+        for row in rows:
+            vote_count = row.vote_count or 0
+            percentage = (vote_count / total_votes * 100) if total_votes > 0 else 0
+            data.append({
+                'candidate_id': row.candidate_id,
+                'name': row.name,
+                'party': row.party,
+                'vote_count': vote_count,
+                'percentage': round(percentage, 2)
+            })
+    
+    return render_template('result.html', data=data, total_votes=total_votes)
 
 
 if __name__ == '__main__':
