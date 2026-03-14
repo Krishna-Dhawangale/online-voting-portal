@@ -224,7 +224,6 @@ BASE_TEMPLATE = '''
                 <a class="nav-link" href="/">Login</a>
                 <a class="nav-link" href="/register">Register</a>
                 <a class="nav-link" href="/result">Results</a>
-                <a class="nav-link" href="/admin">Admin</a>
             </div>
         </div>
     </nav>
@@ -565,8 +564,44 @@ ADMIN_PAGE = BASE_TEMPLATE.replace('{% block title %}SecureVote Portal{% endbloc
         </div>
         
         <div class="text-center mt-4">
-            <small><a href="/" class="text-decoration-none">← Back to Login</a></small>
+            <small><a href="/admin-logout" class="text-decoration-none">← Logout Admin</a></small>
         </div>
+    </div>
+    '''
+)
+
+# Admin login page
+ADMIN_LOGIN_PAGE = BASE_TEMPLATE.replace('{% block title %}SecureVote Portal{% endblock %}', '{% block title %}Admin Login · SecureVote Portal{% endblock %}').replace(
+    '{% block content %}{% endblock %}', '''
+    <div class="app-header">
+        <i class="bi bi-shield-lock icon-large"></i>
+        <h2>Admin Login</h2>
+        <p>Access the administrative dashboard</p>
+    </div>
+    <div class="app-body">
+        {% if error %}
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Admin Username</label>
+                <input type="text" name="username" class="form-control" 
+                       placeholder="Enter admin username" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Admin Password</label>
+                <input type="password" name="password" class="form-control" 
+                       placeholder="Enter admin password" required>
+            </div>
+            <button type="submit" class="btn btn-primary mb-3">
+                <i class="bi bi-shield-check me-2"></i>Login to Admin
+            </button>
+            <div class="text-center">
+                <small><a href="/" class="text-decoration-none">← Back to Voter Portal</a></small>
+            </div>
+        </form>
     </div>
     '''
 )
@@ -590,6 +625,10 @@ VOTE_SUCCESS_PAGE = BASE_TEMPLATE.replace('{% block title %}SecureVote Portal{% 
     </div>
     '''
 )
+
+# Admin credentials
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
 
 # In-memory storage for demo
 voters_db = {}
@@ -737,6 +776,33 @@ def result():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    # Check if admin is logged in
+    if not session.get('admin_logged_in'):
+        if request.method == 'POST':
+            username = request.form['username']
+            password = request.form['password']
+            
+            if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+                session['admin_logged_in'] = True
+                # Prepare voter data for admin dashboard
+                voters_list = [{
+                    'voter_id': v['voter_id'],
+                    'name': v['name'],
+                    'aadhaar': v['aadhaar'],
+                    'has_voted': v['has_voted'],
+                    'voted_for': v.get('voted_for', '-')
+                } for v in voters_db.values()]
+                
+                return render_template_string(ADMIN_PAGE, 
+                    total_voters=len(voters_db),
+                    voted_count=len(votes_db),
+                    voters=voters_list)
+            else:
+                return render_template_string(ADMIN_LOGIN_PAGE, error="Invalid admin credentials")
+        
+        return render_template_string(ADMIN_LOGIN_PAGE)
+    
+    # Admin is logged in, handle admin dashboard
     if request.method == 'POST':
         name = request.form['name']
         party = request.form['party']
@@ -745,17 +811,20 @@ def admin():
         candidate_id = max(c[0] for c in candidates_db) + 1
         candidates_db.append((candidate_id, name, party))
         
+        # Prepare voter data
+        voters_list = [{
+            'voter_id': v['voter_id'],
+            'name': v['name'],
+            'aadhaar': v['aadhaar'],
+            'has_voted': v['has_voted'],
+            'voted_for': v.get('voted_for', '-')
+        } for v in voters_db.values()]
+        
         return render_template_string(ADMIN_PAGE, 
             message=f"Candidate '{name}' from '{party}' added successfully!",
             total_voters=len(voters_db),
             voted_count=len(votes_db),
-            voters=[{
-                'voter_id': v['voter_id'],
-                'name': v['name'],
-                'aadhaar': v['aadhaar'],
-                'has_voted': v['has_voted'],
-                'voted_for': v.get('voted_for', '-')
-            } for v in voters_db.values()])
+            voters=voters_list)
     
     # Prepare voter data
     voters_list = [{
@@ -770,6 +839,11 @@ def admin():
         total_voters=len(voters_db),
         voted_count=len(votes_db),
         voters=voters_list)
+
+@app.route('/admin-logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    return redirect('/')
 
 # Export for Vercel
 app_handler = app
