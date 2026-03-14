@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/complete_portal.py",
+      "src": "api/exact_local_ui.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/complete_portal.py"
+      "dest": "api/exact_local_ui.py"
     }
   ]
 }
