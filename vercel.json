@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/beautiful_voting_app.py",
+      "src": "api/working_beautiful_app.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/beautiful_voting_app.py"
+      "dest": "api/working_beautiful_app.py"
     }
   ]
 }
