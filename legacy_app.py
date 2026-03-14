@@ -47,6 +47,29 @@ if os.environ.get('VERCEL'):
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Add comprehensive error handling
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all exceptions and log them"""
+    import traceback
+    error_details = traceback.format_exc()
+    print(f"ERROR: {str(e)}")
+    print(f"TRACEBACK: {error_details}")
+    return f"<h1>Internal Server Error</h1><pre>{error_details}</pre>", 500
+
+@app.errorhandler(404)
+def handle_404(e):
+    """Handle 404 errors"""
+    print(f"404 Error: {str(e)}")
+    return render_template('base.html'), 404
+
+# Add a simple test route
+@app.route('/test')
+def test():
+    """Simple test route"""
+    print("Test route accessed")
+    return "<h1>Test Route Working!</h1><p>Your Flask app is running correctly.</p>"
+
 # Initialize database schema (works for Postgres or SQLite via DATABASE_URL)
 try:
     if candidates and get_session and init_db:
@@ -99,9 +122,14 @@ def register():
 # ---------------- LOGIN + OTP ----------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
+    print("Login route accessed")
+    print(f"Request method: {request.method}")
+    
     if request.method == 'POST':
+        print("Processing POST request")
         aadhaar = request.form['aadhaar']
         password = request.form['password']
+        print(f"Login attempt for Aadhaar: {aadhaar}")
 
         with get_session() as session_db:
             user = get_voter_by_credentials(session_db, aadhaar, password)
@@ -118,7 +146,10 @@ def login():
                 session['otp'] = otp  # Store OTP for verification
                 return redirect('/verify')
             else:
+                print("Invalid login credentials")
                 return "Invalid Login"
+    
+    print("Rendering login template")
     return render_template('login.html')
 
 
