@@ -1,8 +1,20 @@
 print("Script started.")
 from flask import Flask, render_template, request, redirect, session
 import random
+import os
 
-from db import candidates, get_session, get_voter_by_credentials, init_db, voters, votes
+# Import database components with error handling
+try:
+    from db import candidates, get_session, get_voter_by_credentials, init_db, voters, votes
+    print("Database imports successful.")
+except ImportError as e:
+    print(f"Database import error: {e}")
+    # Set dummy functions for debugging
+    def get_session(): pass
+    def init_db(): pass
+    candidates = None
+    voters = None
+    votes = None
 
 app = Flask(__name__, template_folder='.', static_folder=None)
 app.secret_key = "secretkey"
@@ -17,24 +29,28 @@ if os.environ.get('VERCEL'):
 
 # Initialize database schema (works for Postgres or SQLite via DATABASE_URL)
 try:
-    init_db()
-    print("Database initialized successfully.")
-    
-    # Seed initial data if running on Vercel and no candidates exist
-    if os.environ.get('VERCEL'):
-        with get_session() as session_db:
-            existing_candidates = session_db.execute(candidates.select()).first()
-            if not existing_candidates:
-                print("Seeding initial candidates for Vercel deployment...")
-                session_db.execute(candidates.insert().values(name="Narendra Modi", party="BJP"))
-                session_db.execute(candidates.insert().values(name="Rahul Gandhi", party="Congress"))
-                session_db.execute(candidates.insert().values(name="Eknath Shinde", party="Shiv Sena"))
-                session_db.execute(candidates.insert().values(name="naren", party="Independent"))
-                session_db.commit()
-                print("Initial candidates seeded successfully.")
+    if candidates and get_session and init_db:
+        init_db()
+        print("Database initialized successfully.")
+        
+        # Seed initial data if running on Vercel and no candidates exist
+        if os.environ.get('VERCEL'):
+            with get_session() as session_db:
+                existing_candidates = session_db.execute(candidates.select()).first()
+                if not existing_candidates:
+                    print("Seeding initial candidates for Vercel deployment...")
+                    session_db.execute(candidates.insert().values(name="Narendra Modi", party="BJP"))
+                    session_db.execute(candidates.insert().values(name="Rahul Gandhi", party="Congress"))
+                    session_db.execute(candidates.insert().values(name="Eknath Shinde", party="Shiv Sena"))
+                    session_db.execute(candidates.insert().values(name="naren", party="Independent"))
+                    session_db.commit()
+                    print("Initial candidates seeded successfully.")
+    else:
+        print("Database components not available, skipping initialization.")
                 
 except Exception as e:
     print(f"Error initializing database: {e}")
+    print("Continuing without database...")
 
 
 # ---------------- REGISTER ----------------
