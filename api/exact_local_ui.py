@@ -183,7 +183,13 @@ BASE_TEMPLATE = '''
                             <a class="nav-link" href="/register">Register</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/vote">Vote</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/result">Results</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin">Admin</a>
                         </li>
                     </ul>
                 </div>
@@ -646,7 +652,128 @@ VOTE_SUCCESS_TEMPLATE = BASE_TEMPLATE.replace('{% block title %}Online Voting Po
 '''
 )
 
-# Admin login template
+# Admin dashboard template (matching localhost admin.html)
+ADMIN_TEMPLATE = BASE_TEMPLATE.replace('{% block title %}Online Voting Portal{% endblock %}', '{% block title %}Admin Dashboard · Online Voting{% endblock %}').replace(
+    '{% block content %}{% endblock %}', '''
+<div class="content-card mx-auto">
+  <div class="card-surface p-4 p-lg-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="h4 fw-semibold mb-1">Admin Dashboard</h1>
+        <p class="text-muted mb-0 small">
+          Manage voting system and view statistics
+        </p>
+      </div>
+      <div class="text-end">
+        <span class="badge bg-danger bg-opacity-75 text-white results-badge px-3 py-2 small">
+          Admin Access
+        </span>
+      </div>
+    </div>
+
+    {% if message %}
+    <div class="alert alert-success">{{ message }}</div>
+    {% endif %}
+
+    <div class="row mb-4">
+      <div class="col-md-4 mb-3">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body text-center">
+            <h5 class="card-title text-primary">{{ total_voters }}</h5>
+            <p class="card-text text-muted small">Total Voters</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body text-center">
+            <h5 class="card-title text-success">{{ voted_count }}</h5>
+            <p class="card-text text-muted small">Voted</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body text-center">
+            <h5 class="card-title text-info">{{ candidates|length }}</h5>
+            <p class="card-text text-muted small">Candidates</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-6 mb-4">
+        <h4 class="h5 fw-semibold mb-3">Add New Candidate</h4>
+        <form method="post">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="field-label mb-1">Candidate Name</label>
+              <input type="text" name="name" class="form-control" placeholder="Enter candidate name" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="field-label mb-1">Party Name</label>
+              <input type="text" name="party" class="form-control" placeholder="Enter party name" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Add Candidate
+          </button>
+        </form>
+      </div>
+      
+      <div class="col-lg-6 mb-4">
+        <h4 class="h5 fw-semibold mb-3">Quick Actions</h4>
+        <div class="d-grid gap-2">
+          <a href="/admin-logout" class="btn btn-outline-secondary">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout Admin
+          </a>
+          <a href="/" class="btn btn-outline-primary">
+            <i class="bi bi-house me-2"></i>Go to Voter Portal
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-12">
+        <h4 class="h5 fw-semibold mb-3">Voter Records</h4>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Voter ID</th>
+                <th>Name</th>
+                <th>Aadhaar</th>
+                <th>Status</th>
+                <th>Voted For</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for voter in voters %}
+              <tr>
+                <td>{{ voter.voter_id }}</td>
+                <td>{{ voter.name }}</td>
+                <td>{{ voter.aadhaar }}</td>
+                <td>
+                  {% if voter.has_voted %}
+                    <span class="badge bg-success">Voted</span>
+                  {% else %}
+                    <span class="badge bg-warning">Pending</span>
+                  {% endif %}
+                </td>
+                <td>{{ voter.voted_for or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+'''
+)
 ADMIN_LOGIN_TEMPLATE = BASE_TEMPLATE.replace('{% block title %}Online Voting Portal{% endblock %}', '{% block title %}Admin Login · Online Voting{% endblock %}').replace(
     '{% block content %}{% endblock %}', '''
 <div class="auth-layout mx-auto">
@@ -867,22 +994,64 @@ def admin():
             
             if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
                 session['admin_logged_in'] = True
-                return redirect('/admin')
+                # Prepare data for admin dashboard
+                voters_list = [{
+                    'voter_id': v['voter_id'],
+                    'name': v['name'],
+                    'aadhaar': v['aadhaar'],
+                    'has_voted': v['has_voted'],
+                    'voted_for': v.get('voted_for', '-')
+                } for v in voters_db.values()]
+                
+                return render_template_string(ADMIN_TEMPLATE, 
+                    total_voters=len(voters_db),
+                    voted_count=len(votes_db),
+                    candidates=candidates_db,
+                    voters=voters_list)
             else:
                 return render_template_string(ADMIN_LOGIN_TEMPLATE, error="Invalid admin credentials")
         
         return render_template_string(ADMIN_LOGIN_TEMPLATE)
     
-    # Admin dashboard (simplified for now)
-    return '''
-    <div class="content-card mx-auto">
-        <div class="card-surface p-4 p-lg-5 text-center">
-            <h2>Admin Dashboard</h2>
-            <p>Admin functionality coming soon...</p>
-            <a href="/admin-logout" class="btn btn-secondary">Logout</a>
-        </div>
-    </div>
-    '''
+    # Admin is logged in, handle admin dashboard
+    if request.method == 'POST':
+        name = request.form['name']
+        party = request.form['party']
+        
+        # Add new candidate
+        candidate_id = max(c[0] for c in candidates_db) + 1
+        candidates_db.append((candidate_id, name, party))
+        
+        # Prepare data for admin dashboard
+        voters_list = [{
+            'voter_id': v['voter_id'],
+            'name': v['name'],
+            'aadhaar': v['aadhaar'],
+            'has_voted': v['has_voted'],
+            'voted_for': v.get('voted_for', '-')
+        } for v in voters_db.values()]
+        
+        return render_template_string(ADMIN_TEMPLATE, 
+            message=f"Candidate '{name}' from '{party}' added successfully!",
+            total_voters=len(voters_db),
+            voted_count=len(votes_db),
+            candidates=candidates_db,
+            voters=voters_list)
+    
+    # Prepare data for admin dashboard
+    voters_list = [{
+        'voter_id': v['voter_id'],
+        'name': v['name'],
+        'aadhaar': v['aadhaar'],
+        'has_voted': v['has_voted'],
+        'voted_for': v.get('voted_for', '-')
+    } for v in voters_db.values()]
+    
+    return render_template_string(ADMIN_TEMPLATE, 
+        total_voters=len(voters_db),
+        voted_count=len(votes_db),
+        candidates=candidates_db,
+        voters=voters_list)
 
 @app.route('/admin-logout')
 def admin_logout():
