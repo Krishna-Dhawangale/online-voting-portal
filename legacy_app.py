@@ -9,9 +9,29 @@ try:
     print("Database imports successful.")
 except ImportError as e:
     print(f"Database import error: {e}")
+    # Try importing psycopg2 directly to see if it's available
+    try:
+        import psycopg2
+        print("psycopg2 is available")
+    except ImportError:
+        print("psycopg2 is NOT available - adding to requirements...")
+    
     # Set dummy functions for debugging
-    def get_session(): pass
-    def init_db(): pass
+    def get_session(): 
+        class DummySession:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def execute(self, *args): 
+                class DummyResult:
+                    def first(self): return None
+                    def all(self): return []
+                return DummyResult()
+            def commit(self): pass
+        return DummySession()
+    
+    def init_db(): 
+        print("Database initialization skipped (dummy mode)")
+    
     candidates = None
     voters = None
     votes = None
