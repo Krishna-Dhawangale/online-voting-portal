@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/professional_voting_app.py",
+      "src": "api/simple_working_app.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/professional_voting_app.py"
+      "dest": "api/simple_working_app.py"
     }
   ]
 }
