@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/simple_flask.py",
+      "src": "api/voting_app.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/simple_flask.py"
+      "dest": "api/voting_app.py"
     }
   ]
 }
